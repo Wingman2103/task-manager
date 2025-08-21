@@ -1,19 +1,36 @@
+import uvicorn
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-import uvicorn
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from db.database import init_db
+from modules.logger import logger
+from modules.middleware import log_middleware
 
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
-    print("Start app")
+    logger.info("Start app")
+    await init_db()
+    logger.info("Database ready")
     yield
-    print("Finish app")
+    logger.info("Finish app")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Task Manager",
+    description="Простое CRUD‑API для управления задачами",
+    swagger_ui_parameters={
+        "filter": "true",
+        "operationsSorter": "method",
+    },
+    lifespan=lifespan)
 
 @app.get("/") 
 def read_root():
     return {"Hello": "World"}
 
+app.add_middleware(BaseHTTPMiddleware, dispatch=log_middleware)
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", reload=True, port=8000)
+    uvicorn.run("main:app", host="0.0.0.0",  port=8000, reload=True)
