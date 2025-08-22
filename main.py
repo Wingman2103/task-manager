@@ -20,7 +20,7 @@ async def lifespan(app:FastAPI):
     logger.info("Finish app")
 
 app = FastAPI(
-    title="Task Manager",
+    title=settings.PROJECT_NAME,
     description="Простое CRUD‑API для управления задачами",
     swagger_ui_parameters={
         "filter": "true",
@@ -30,7 +30,7 @@ app = FastAPI(
 
 @app.get("/") 
 def read_root():
-    return {"Hello": "World"}
+    return {"App": app.title}
 
 app.add_middleware(BaseHTTPMiddleware, dispatch=log_middleware)
 

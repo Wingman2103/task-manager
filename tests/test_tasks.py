@@ -1,35 +1,37 @@
+import uuid
 import pytest
-from httpx import AsyncClient
 
-from api.v1.task.schemas import TaskCreate, TaskUpdate
+from httpx import AsyncClient
+from models.task import TaskStatus
+
 
 @pytest.mark.asyncio
 async def test_create_task(client: AsyncClient):
+    
     data = {
         "title": "Test task",
         "description": "This is a test task",
-        "status": "СОЗДАНО"
+        "status": TaskStatus.created.value
     }
     response = await client.post("api/v1/task", json=data)
     assert response.status_code == 201
     result = response.json()
     assert result["title"] == data["title"]
     assert result["description"] == data["description"]
-    assert result["status"] == "СОЗДАНО"
+    assert result["status"] == TaskStatus.created.value
     return result["id"]
 
 
 @pytest.mark.asyncio
 async def test_get_task(client: AsyncClient):
-    # Создаем задачу
+
     create_resp = await client.post("api/v1/task", json={
         "title": "Task 1",
         "description": "Task to get",
-        "status": "СОЗДАНО"
+        "status": TaskStatus.created.value
     })
     task_id = create_resp.json()["id"]
 
-    # Получаем задачу
     response = await client.get(f"api/v1/task/{task_id}")
     assert response.status_code == 200
     assert response.json()["id"] == task_id
@@ -37,15 +39,15 @@ async def test_get_task(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_task_by_title(client: AsyncClient):
+
     title = "Unique Task"
-    # Создаем задачу
+
     await client.post("api/v1/task", json={
         "title": title,
         "description": "Task to search",
-        "status": "СОЗДАНО"
+        "status": TaskStatus.created.value
     })
 
-    # Поиск по названию
     response = await client.get(f"api/v1/task/title/{title}")
     assert response.status_code == 200
     result = response.json()
@@ -55,15 +57,14 @@ async def test_get_task_by_title(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_all_tasks(client: AsyncClient):
-    # Создаем пару задач
+
     for i in range(2):
         await client.post("api/v1/task", json={
             "title": f"Task {i}",
             "description": "For list test",
-            "status": "СОЗДАНО"
+            "status": TaskStatus.created.value
         })
 
-    # Получаем список
     response = await client.get("api/v1/task")
     assert response.status_code == 200
     result = response.json()
@@ -73,42 +74,116 @@ async def test_get_all_tasks(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_update_task(client: AsyncClient):
-    # Создаем задачу
+  
     create_resp = await client.post("api/v1/task", json={
         "title": "Task to update",
         "description": "Old description",
-        "status": "СОЗДАНО"
+        "status": TaskStatus.created.value
     })
     task_id = create_resp.json()["id"]
 
-    # Обновляем задачу
     update_data = {
         "title": "Updated Task",
         "description": "Updated description",
-        "status": "В РАБОТЕ"
+        "status": TaskStatus.in_progress.value
     }
-    response = await client.put(f"api/v1/task/{task_id}", json=update_data)
+    response = await client.patch(f"api/v1/task/{task_id}", json=update_data)
     assert response.status_code == 200
     result = response.json()
     assert result["title"] == update_data["title"]
     assert result["description"] == update_data["description"]
-    assert result["status"] == "В РАБОТЕ"
+    assert result["status"] == TaskStatus.in_progress.value
 
 
 @pytest.mark.asyncio
 async def test_delete_task(client: AsyncClient):
-    # Создаем задачу
+
     create_resp = await client.post("api/v1/task", json={
         "title": "Task to delete",
         "description": "Will be removed",
-        "status": "СОЗДАНО"
+        "status": TaskStatus.created.value
     })
     task_id = create_resp.json()["id"]
 
-    # Удаляем задачу
     response = await client.delete(f"api/v1/task/{task_id}")
     assert response.status_code == 204
 
-    # Проверяем, что ее больше нет
     get_resp = await client.get(f"api/v1/task/{task_id}")
     assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_full_loop_task(client: AsyncClient):
+
+    data = {
+        "title": "Test task",
+        "description": "This is a test task",
+        "status": TaskStatus.created.value
+    }
+    create_resp = await client.post("api/v1/task", json=data)
+    assert create_resp.status_code == 201
+    result = create_resp.json()
+    assert result["title"] == data["title"]
+    assert result["description"] == data["description"]
+    assert result["status"] == TaskStatus.created.value
+    
+    task_id = result["id"]
+
+    update_data = {
+        "description": "Updated description",
+        "status": TaskStatus.in_progress.value
+    }
+    update_response = await client.patch(f"api/v1/task/{task_id}", json=update_data)
+    assert update_response.status_code == 200
+    result = update_response.json()
+    assert result["description"] == update_data["description"]
+    assert result["status"] == TaskStatus.in_progress.value
+
+    update_data = {
+        "description": "Complete description",
+        "status": TaskStatus.completed.value
+    }
+    update_response = await client.patch(f"api/v1/task/{task_id}", json=update_data)
+    assert update_response.status_code == 200
+    result = update_response.json()
+    assert result["description"] == update_data["description"]
+    assert result["status"] == TaskStatus.completed.value
+
+    response = await client.delete(f"api/v1/task/{task_id}")
+    assert response.status_code == 204
+
+    get_resp = await client.get(f"api/v1/task/{task_id}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_bad_get_task(client: AsyncClient):
+
+    task_id = uuid.uuid4()
+    
+    response = await client.get(f"api/v1/task/{task_id}")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_bad_update_task(client: AsyncClient):
+
+    task_id = uuid.uuid4()
+
+    update_data = {
+        "title": "Updated Task",
+        "description": "Updated description",
+        "status": TaskStatus.in_progress.value
+    }
+    
+    response = await client.patch(f"api/v1/task/{task_id}", json=update_data)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_bad_delete_task(client: AsyncClient):
+
+    task_id = uuid.uuid4()
+    
+    response = await client.delete(f"api/v1/task/{task_id}")
+    assert response.status_code == 404

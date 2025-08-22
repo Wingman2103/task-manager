@@ -26,7 +26,7 @@ async def get_task(task_id: UUID, session: session_depend):
 @router.get("/task/title/{title}",
             response_model=list[TaskRead],
             status_code=200,
-            summary="Получение задачи",
+            summary="Получение задач по названию",
             description="Получить все задачи с таким названием"
             )
 async def get_task(title: str, session: session_depend):
@@ -38,7 +38,9 @@ async def get_task(title: str, session: session_depend):
 
 @router.get("/task",
             response_model=list[TaskRead],
-            status_code=200
+            status_code=200,
+            summary="Получение списка всех задач",
+            description="Получить все задачи"
             )
 async def get_tasks(session: session_depend):
     result = await task_crud.get_list(session)
@@ -50,6 +52,8 @@ async def get_tasks(session: session_depend):
 @router.post("/task", 
              response_model=TaskRead,
              status_code=201,
+             summary="Создать задачу",
+             description="Создание новой задачи"
              )
 async def create_task(task_body: TaskCreate, session: session_depend):
     task_id = await task_crud.create(task_body, session)
@@ -59,9 +63,11 @@ async def create_task(task_body: TaskCreate, session: session_depend):
         raise HTTPException(status_code=404, detail="Task not created")
 
 
-@router.put("/task/{task_id}", 
+@router.patch("/task/{task_id}", 
              response_model=TaskRead,
              status_code=200,
+             summary="Обновление задачи",
+             description="Обновить задачу по ее id"
              )
 async def update_task(task_id: UUID, task_body: TaskUpdate, session: session_depend):
     old_task = await task_crud.get(task_id, session)
@@ -73,7 +79,9 @@ async def update_task(task_id: UUID, task_body: TaskUpdate, session: session_dep
 
 @router.delete("/task/{task_id}", 
              status_code=204,
-             response_description="No Content"
+             response_description="No Content",
+             summary="Удаление задачи",
+             description="Удалить задачу по ее id"
              )
 async def delete_task(task_id: UUID, session: session_depend):
     task = await task_crud.get(task_id, session)
